@@ -12,4 +12,4 @@ cdk/node_modules/
 .cache/*
 
 # Exception: Commit the State
-!.cli/deployed-state.json
+.cli/deployed-state.json
