@@ -7,17 +7,7 @@
     "agentcore:created-by": "agentcore-cli",
     "agentcore:project-name": "weatheragent"
   },
-  "runtimes": [
-    {
-      "name": "weatheragent",
-      "build": "CodeZip",
-      "entrypoint": "main.py",
-      "codeLocation": "app/weatheragent/",
-      "runtimeVersion": "PYTHON_3_13",
-      "networkMode": "PUBLIC",
-      "protocol": "HTTP"
-    }
-  ],
+  "runtimes": [],
   "memories": [],
   "credentials": [],
   "evaluators": [],

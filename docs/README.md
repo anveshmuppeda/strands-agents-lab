@@ -2,30 +2,44 @@
 
 A structured learning path from zero to production-ready AI agents on AWS.
 
-## Phase 1: Foundations
+## Documents
 
-| # | Document | What You'll Learn |
-|---|----------|-------------------|
-| 1 | [Terminology & Definitions](./01-terminology.md) | What is an Agent, LLM, Bedrock, Strands, AgentCore, Tools, MCP, A2A, and more |
+| # | Document | What's Covered |
+|---|----------|----------------|
+| 1 | [Terminology & Definitions](./01-terminology.md) | Agent, LLM, Bedrock, Strands, AgentCore, Tools, MCP, A2A, Sessions |
 | 2 | [Core Strands Patterns](./02-core-patterns.md) | 15 code patterns from simplest agent to multi-agent swarm |
-| 3 | [Fix Your Weather Agent](./03-fix-weather-agent.md) | Rewrite your agent with best practices (BedrockModel, error handling) |
-| 4 | [Practice Project: DevOps Agent](./04-practice-devops-agent.md) | Build a multi-tool AWS infrastructure assistant |
-| 5 | [Phase 1 Checklist & Next Steps](./05-checklist-and-next-steps.md) | What you've learned + bridge to Phase 2 (AgentCore deployment) |
-| 6 | [Tool Scaling & Progressive Disclosure](./06-tool-scaling.md) | What happens with 10, 50, 100+ tools and how production systems handle it |
-| 7 | [GitHub Repo Setup](./07-github-repo-setup.md) | Repo name, folder structure, .gitignore, LICENSE, step-by-step publish guide |
+| 3 | [Learning Path, Checklist & Tool Scaling](./03-learning-path.md) | Phase progression, checklist, tool scaling strategies, key resources |
 
-## Phase 2: AgentCore Deployment (Coming Next)
+## Learning Path
 
-Deploy your first agent to AgentCore Runtime using the CLI.
-
-## Phase 3: AgentCore Features (Coming Next)
-
-Memory, Gateway, Identity, Observability, Evaluations.
-
-## Quick Start
-
-```bash
-cd strands
-pip install -r requirements.txt
-python weather_agent_v2.py
 ```
+Phase 1 — Foundations
+  ├── Understand the concepts  →  01-terminology.md
+  ├── Learn the code patterns  →  02-core-patterns.md
+  └── Run an agent locally     →  agents/weather-agent/local/
+
+Phase 2 — AgentCore Deployment
+  ├── Wrap your agent with BedrockAgentCoreApp
+  ├── Test locally with agentcore dev
+  └── Deploy to AWS            →  agents/weather-agent/agentcore/
+
+Phase 3 — AgentCore Features
+  ├── Memory — persist conversations across sessions
+  ├── Gateway — expose tools via MCP
+  ├── Identity — authentication for agents and users
+  └── Observability & Evaluations
+```
+
+## Key Concepts at a Glance
+
+- **Strands Agents SDK** — open-source Python SDK for building model-driven agents
+- **Amazon Bedrock** — AWS service providing access to LLMs (Claude, Nova, Llama, etc.) via IAM credentials
+- **Amazon Bedrock AgentCore** — production infrastructure for running agents at scale (Runtime, Memory, Gateway, Identity, Observability)
+- **AgentCore CLI** — `agentcore create / dev / deploy / invoke` — the developer workflow tool
+
+## Agents in This Repo
+
+| Agent | Description | Docs |
+|-------|-------------|------|
+| Weather Agent (Local) | Strands agent running locally with Python | [agents/weather-agent/local/](../agents/weather-agent/local/README.md) |
+| Weather Agent (AgentCore) | Same agent deployed to AgentCore Runtime | [agents/weather-agent/agentcore/](../agents/weather-agent/agentcore/README.md) |

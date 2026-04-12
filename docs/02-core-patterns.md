@@ -48,7 +48,7 @@ model = AnthropicModel(
 from strands.models.bedrock import BedrockModel
 
 model = BedrockModel(
-    model_id="us.anthropic.claude-sonnet-4-20250514-v1:0",
+    model_id="amazon.nova-pro-v1:0",
     region_name="us-east-1",
     max_tokens=4096
 )
@@ -65,7 +65,7 @@ model = BedrockModel(
 ```python
 # Amazon Bedrock (recommended)
 from strands.models.bedrock import BedrockModel
-model = BedrockModel(model_id="us.anthropic.claude-sonnet-4-20250514-v1:0")
+model = BedrockModel(model_id="amazon.nova-pro-v1:0")
 
 # Anthropic direct
 from strands.models.anthropic import AnthropicModel
@@ -93,7 +93,7 @@ The system prompt shapes everything about how your agent behaves.
 from strands import Agent
 from strands.models.bedrock import BedrockModel
 
-model = BedrockModel(model_id="us.anthropic.claude-sonnet-4-20250514-v1:0")
+model = BedrockModel(model_id="amazon.nova-pro-v1:0")
 
 # A focused, well-structured system prompt
 SYSTEM_PROMPT = """You are a Python code reviewer.
@@ -174,7 +174,7 @@ from strands import Agent, tool
 from strands.models.bedrock import BedrockModel
 import json
 
-model = BedrockModel(model_id="us.anthropic.claude-sonnet-4-20250514-v1:0")
+model = BedrockModel(model_id="amazon.nova-pro-v1:0")
 
 @tool
 def search_employees(query: str) -> str:
@@ -243,7 +243,7 @@ import urllib.request
 from strands import Agent, tool
 from strands.models.bedrock import BedrockModel
 
-model = BedrockModel(model_id="us.anthropic.claude-sonnet-4-20250514-v1:0")
+model = BedrockModel(model_id="amazon.nova-pro-v1:0")
 
 @tool
 def get_weather(latitude: float, longitude: float) -> str:
@@ -318,7 +318,7 @@ By default, a Strands agent remembers the conversation within a session:
 from strands import Agent
 from strands.models.bedrock import BedrockModel
 
-model = BedrockModel(model_id="us.anthropic.claude-sonnet-4-20250514-v1:0")
+model = BedrockModel(model_id="amazon.nova-pro-v1:0")
 
 agent = Agent(
     model=model,
@@ -352,7 +352,7 @@ from strands import Agent
 from strands.models.bedrock import BedrockModel
 from pydantic import BaseModel
 
-model = BedrockModel(model_id="us.anthropic.claude-sonnet-4-20250514-v1:0")
+model = BedrockModel(model_id="amazon.nova-pro-v1:0")
 
 # Define the output structure
 class MovieReview(BaseModel):
@@ -388,7 +388,7 @@ import asyncio
 from strands import Agent
 from strands.models.bedrock import BedrockModel
 
-model = BedrockModel(model_id="us.anthropic.claude-sonnet-4-20250514-v1:0")
+model = BedrockModel(model_id="amazon.nova-pro-v1:0")
 
 async def main():
     agent = Agent(model=model, system_prompt="You are a helpful assistant.")
@@ -429,7 +429,7 @@ from strands_tools import (
     python_repl,      # Execute Python code
 )
 
-model = BedrockModel(model_id="us.anthropic.claude-sonnet-4-20250514-v1:0")
+model = BedrockModel(model_id="amazon.nova-pro-v1:0")
 
 agent = Agent(
     model=model,
@@ -518,7 +518,7 @@ class InventoryManager:
 # Create instance — tools share the same inventory state
 inventory = InventoryManager()
 
-model = BedrockModel(model_id="us.anthropic.claude-sonnet-4-20250514-v1:0")
+model = BedrockModel(model_id="amazon.nova-pro-v1:0")
 agent = Agent(
     model=model,
     system_prompt="You are an inventory management assistant.",
@@ -545,7 +545,7 @@ def personalized_greeting(tool_context: ToolContext) -> str:
     agent_name = tool_context.agent.name
     return f"Hello! I'm {agent_name}, and I see you're user {user_id}."
 
-model = BedrockModel(model_id="us.anthropic.claude-sonnet-4-20250514-v1:0")
+model = BedrockModel(model_id="amazon.nova-pro-v1:0")
 agent = Agent(
     model=model,
     name="SupportBot",
@@ -570,7 +570,7 @@ specialized "inner" agents:
 from strands import Agent, tool
 from strands.models.bedrock import BedrockModel
 
-model = BedrockModel(model_id="us.anthropic.claude-sonnet-4-20250514-v1:0")
+model = BedrockModel(model_id="amazon.nova-pro-v1:0")
 
 # Specialist agents
 code_reviewer = Agent(
@@ -629,7 +629,7 @@ from strands import Agent, tool
 from strands.models.bedrock import BedrockModel
 from strands.multiagent.swarm import Swarm
 
-model = BedrockModel(model_id="us.anthropic.claude-sonnet-4-20250514-v1:0")
+model = BedrockModel(model_id="amazon.nova-pro-v1:0")
 
 # Define specialist agents
 sales_agent = Agent(
