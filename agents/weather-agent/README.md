@@ -26,9 +26,7 @@ With an agent, you describe *what* tools can do. The LLM figures out *when* and 
 
 ## Architecture
 
-![Weather Agent Architecture](./assets/architecture.png)
-
-> Place your architectural diagram at `agents/weather-agent/assets/architecture.png`
+![Weather Agent Architecture](./../../assets/01-agentcore-weatheragent.png)
 
 The agent follows a **model-driven loop**:
 
