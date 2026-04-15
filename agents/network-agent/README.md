@@ -23,9 +23,7 @@ Traditional network debugging means logging into the AWS Console, clicking throu
 
 ## Architecture
 
-![Network Agent Architecture](./assets/architecture.png)
-
-> Place your architectural diagram at `agents/network-agent/assets/architecture.png`
+![Network Agent Architecture](./../../assets/02-agentcore-networkingagent.png)
 
 ```
 User Query
