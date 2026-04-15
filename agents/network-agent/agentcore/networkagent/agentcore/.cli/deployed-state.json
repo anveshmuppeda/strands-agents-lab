@@ -1,0 +1,16 @@
+{
+  "targets": {
+    "default": {
+      "resources": {
+        "runtimes": {
+          "networkagent": {
+            "runtimeId": "networkagent_networkagent-HGGagm718w",
+            "runtimeArn": "arn:aws:bedrock-agentcore:us-east-1:463470985368:runtime/networkagent_networkagent-HGGagm718w",
+            "roleArn": "arn:aws:iam::463470985368:role/AgentCore-networkagent-de-ApplicationAgentNetworkag-zsHVwK71UZJp"
+          }
+        },
+        "stackName": "AgentCore-networkagent-default"
+      }
+    }
+  }
+}

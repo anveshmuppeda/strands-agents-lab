@@ -9,6 +9,7 @@ Learning and building AI agents with [Strands Agents SDK](https://strandsagents.
 | Agent | Description | Local | AgentCore |
 |-------|-------------|-------|-----------|
 | [Weather Agent](agents/weather-agent/) | Live weather forecasts using NWS API | [local/](agents/weather-agent/local/) | [agentcore/](agents/weather-agent/agentcore/) |
+| [Network Agent](agents/network-agent/) | AWS network diagnostics — routes, NACLs, SGs, reachability | [local/](agents/network-agent/local/) | [agentcore/](agents/network-agent/agentcore/) |
 
 ### Documentation
 
