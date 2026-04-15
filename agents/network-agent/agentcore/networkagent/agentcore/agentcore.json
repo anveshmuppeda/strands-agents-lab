@@ -7,17 +7,7 @@
     "agentcore:created-by": "agentcore-cli",
     "agentcore:project-name": "networkagent"
   },
-  "runtimes": [
-    {
-      "name": "networkagent",
-      "build": "CodeZip",
-      "entrypoint": "main.py",
-      "codeLocation": "app/networkagent/",
-      "runtimeVersion": "PYTHON_3_13",
-      "networkMode": "PUBLIC",
-      "protocol": "HTTP"
-    }
-  ],
+  "runtimes": [],
   "memories": [],
   "credentials": [],
   "evaluators": [],

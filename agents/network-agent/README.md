@@ -1,4 +1,5 @@
-# AWS Network Agent — Built with Strands Agents SDK and Amazon Bedrock AgentCore
+# AWS Network Agent — Built with Strands Agents SDK and Amazon Bedrock AgentCore (Part-2)
+## *From Clicking in Console to Talking to AI: AWS Network Debugging Reimagined*  
 
 An AI agent that diagnoses AWS networking issues by reading AWS resource configurations — route tables, Network ACLs, security groups, VPC endpoints, and VPC Reachability Analyzer. No local socket or ping calls — everything is done through AWS APIs.
 
