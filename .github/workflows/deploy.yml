@@ -1,0 +1,148 @@
+name: Deploy Weather Agent
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "agents/weather-agent-cdk-py/**"
+
+  workflow_dispatch:  # Manual trigger
+
+env:
+  AWS_REGION: us-east-1
+  CDK_DIR: agents/weather-agent-cdk-py
+
+permissions:
+  id-token: write   # For OIDC auth with AWS
+  contents: read
+
+jobs:
+
+  # ──────────────────────────────────────────────
+  # Job 1: Deploy base infrastructure (ECR + IAM)
+  # ──────────────────────────────────────────────
+  deploy-infra:
+    name: Deploy Base Infra
+    runs-on: ubuntu-latest
+    outputs:
+      ecr_uri: ${{ steps.get-outputs.outputs.ecr_uri }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install CDK
+        run: npm install -g aws-cdk
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Install CDK dependencies
+        working-directory: ${{ env.CDK_DIR }}
+        run: pip install -r requirements.txt
+
+      - name: CDK Deploy — Base Infra
+        working-directory: ${{ env.CDK_DIR }}
+        run: cdk deploy WeatherAgent-BaseInfra --require-approval never
+
+      - name: Get stack outputs
+        id: get-outputs
+        run: |
+          ECR_URI=$(aws cloudformation describe-stacks \
+            --stack-name WeatherAgent-BaseInfra \
+            --query 'Stacks[0].Outputs[?OutputKey==`ECRRepositoryUri`].OutputValue' \
+            --output text)
+          echo "ecr_uri=$ECR_URI" >> "$GITHUB_OUTPUT"
+
+  # ──────────────────────────────────────────────
+  # Job 2: Build Docker image and push to ECR
+  # ──────────────────────────────────────────────
+  build-and-push:
+    name: Build & Push Image
+    runs-on: ubuntu-latest
+    needs: deploy-infra
+    outputs:
+      image_tag: ${{ steps.meta.outputs.image_tag }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set image tag
+        id: meta
+        run: |
+          # Use short git SHA as image tag
+          IMAGE_TAG=$(git rev-parse --short HEAD)
+          echo "image_tag=$IMAGE_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push Docker image
+        working-directory: ${{ env.CDK_DIR }}/agent-code
+        env:
+          ECR_URI: ${{ needs.deploy-infra.outputs.ecr_uri }}
+          IMAGE_TAG: ${{ steps.meta.outputs.image_tag }}
+        run: |
+          docker build -t $ECR_URI:$IMAGE_TAG .
+          docker tag $ECR_URI:$IMAGE_TAG $ECR_URI:latest
+          docker push $ECR_URI:$IMAGE_TAG
+          docker push $ECR_URI:latest
+          echo "Pushed: $ECR_URI:$IMAGE_TAG"
+
+  # ──────────────────────────────────────────────
+  # Job 3: Deploy AgentCore Runtime with new image
+  # ──────────────────────────────────────────────
+  deploy-agentcore:
+    name: Deploy AgentCore
+    runs-on: ubuntu-latest
+    needs: [deploy-infra, build-and-push]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install CDK
+        run: npm install -g aws-cdk
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Install CDK dependencies
+        working-directory: ${{ env.CDK_DIR }}
+        run: pip install -r requirements.txt
+
+      - name: CDK Deploy — AgentCore Runtime
+        working-directory: ${{ env.CDK_DIR }}
+        env:
+          IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
+        run: |
+          cdk deploy WeatherAgent-AgentCore \
+            --require-approval never \
+            -c image_tag=$IMAGE_TAG
