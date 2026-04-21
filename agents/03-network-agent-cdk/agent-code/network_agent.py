@@ -8,10 +8,12 @@ import json
 import boto3
 from strands import Agent, tool
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
+from strands.models.bedrock import BedrockModel
 
 app = BedrockAgentCoreApp()
 log = app.logger
 
+model = BedrockModel(model_id="anthropic.claude-3-sonnet-20240229-v1:0")
 
 @tool
 def check_subnet_details(subnet_id: str) -> str:
@@ -118,6 +120,7 @@ def get_or_create_agent():
     global _agent
     if _agent is None:
         _agent = Agent(
+            model=model,
             system_prompt=SYSTEM_PROMPT,
             tools=[check_subnet_details, check_vpc_routes, check_security_group],
         )
