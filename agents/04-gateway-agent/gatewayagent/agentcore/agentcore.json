@@ -1,0 +1,31 @@
+{
+  "$schema": "https://schema.agentcore.aws.dev/v1/agentcore.json",
+  "name": "gatewayagent",
+  "version": 1,
+  "managedBy": "CDK",
+  "tags": {
+    "agentcore:created-by": "agentcore-cli",
+    "agentcore:project-name": "gatewayagent"
+  },
+  "runtimes": [
+    {
+      "name": "gatewayagent",
+      "build": "CodeZip",
+      "entrypoint": "main.py",
+      "codeLocation": "app/gatewayagent/",
+      "runtimeVersion": "PYTHON_3_13",
+      "networkMode": "PUBLIC",
+      "protocol": "HTTP",
+      "environmentVariables": {
+        "ENVIRONMENT": "prod",
+        "GATEWAY_URL": "https://tools-gateway-3mvijqx3py.gateway.bedrock-agentcore.us-east-1.amazonaws.com/mcp"
+      }
+    }
+  ],
+  "memories": [],
+  "credentials": [],
+  "evaluators": [],
+  "onlineEvalConfigs": [],
+  "agentCoreGateways": [],
+  "policyEngines": []
+}

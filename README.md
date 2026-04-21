@@ -1,49 +1,45 @@
-# Strands Agents Lab
+# Strands Agents & Amazon Bedrock AgentCore — Learning Docs
 
-Learning and building AI agents with [Strands Agents SDK](https://strandsagents.com) and [Amazon Bedrock AgentCore](https://aws.amazon.com/bedrock/agentcore/) — from basics to production deployment.
+A structured learning path from zero to production-ready AI agents on AWS.
 
-## What's Inside
+## Documents
 
-### Agents
+| # | Document | What's Covered |
+|---|----------|----------------|
+| 1 | [Terminology & Definitions](./01-terminology.md) | Agent, LLM, Bedrock, Strands, AgentCore, Tools, MCP, A2A, Sessions |
+| 2 | [Core Strands Patterns](./02-core-patterns.md) | 15 code patterns from simplest agent to multi-agent swarm |
+| 3 | [Learning Path, Checklist & Tool Scaling](./03-learning-path.md) | Phase progression, checklist, tool scaling strategies, key resources |
 
-| Agent | Description | Local | AgentCore |
-|-------|-------------|-------|-----------|
-| [Weather Agent](agents/weather-agent/) | Live weather forecasts using NWS API | [local/](agents/weather-agent/local/) | [agentcore/](agents/weather-agent/agentcore/) |
-| [Network Agent](agents/network-agent/) | AWS network diagnostics — routes, NACLs, SGs, reachability | [local/](agents/network-agent/local/) | [agentcore/](agents/network-agent/agentcore/) |
+## Learning Path
 
-### Documentation
+```
+Phase 1 — Foundations
+  ├── Understand the concepts  →  01-terminology.md
+  ├── Learn the code patterns  →  02-core-patterns.md
+  └── Run an agent locally     →  agents/weather-agent/local/
 
-| Doc | What's Covered |
-|-----|----------------|
-| [Terminology](docs/01-terminology.md) | Agent, LLM, Bedrock, AgentCore, Tools, MCP — all defined with examples |
-| [Core Patterns](docs/02-core-patterns.md) | 15 Strands patterns from basic agent to multi-agent swarm |
-| [Learning Checklist](docs/05-checklist-and-next-steps.md) | Phase progression and key resources |
-| [Tool Scaling](docs/06-tool-scaling.md) | What happens with 10, 50, 100+ tools and how to handle it |
+Phase 2 — AgentCore Deployment
+  ├── Wrap your agent with BedrockAgentCoreApp
+  ├── Test locally with agentcore dev
+  └── Deploy to AWS            →  agents/weather-agent/agentcore/
 
-## Quick Start
-
-```bash
-# Run the weather agent locally
-cd agents/weather-agent/local
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-python3 weather_agent.py
+Phase 3 — AgentCore Features
+  ├── Memory — persist conversations across sessions
+  ├── Gateway — expose tools via MCP
+  ├── Identity — authentication for agents and users
+  └── Observability & Evaluations
 ```
 
-## Prerequisites
+## Key Concepts at a Glance
 
-- Python 3.10+
-- AWS account with [Bedrock model access](https://console.aws.amazon.com/bedrock/home#/modelaccess) enabled
-- AWS CLI configured (`aws configure`)
+- **Strands Agents SDK** — open-source Python SDK for building model-driven agents
+- **Amazon Bedrock** — AWS service providing access to LLMs (Claude, Nova, Llama, etc.) via IAM credentials
+- **Amazon Bedrock AgentCore** — production infrastructure for running agents at scale (Runtime, Memory, Gateway, Identity, Observability)
+- **AgentCore CLI** — `agentcore create / dev / deploy / invoke` — the developer workflow tool
 
-## Tech Stack
+## Agents in This Repo
 
-- [Strands Agents SDK](https://strandsagents.com) — model-driven agent framework (open source, by AWS)
-- [Amazon Bedrock](https://aws.amazon.com/bedrock/) — LLM provider (Claude, Nova, Llama via IAM credentials)
-- [Amazon Bedrock AgentCore](https://aws.amazon.com/bedrock/agentcore/) — production runtime, memory, gateway, observability
-- [AgentCore CLI](https://github.com/aws/agentcore-cli) — `agentcore create / dev / deploy / invoke`
-
-## License
-
-[MIT](./LICENSE)
+| Agent | Description | Docs |
+|-------|-------------|------|
+| Weather Agent (Local) | Strands agent running locally with Python | [agents/weather-agent/local/](../agents/weather-agent/local/README.md) |
+| Weather Agent (AgentCore) | Same agent deployed to AgentCore Runtime | [agents/weather-agent/agentcore/](../agents/weather-agent/agentcore/README.md) |
