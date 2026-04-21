@@ -1,6 +1,5 @@
-# Network Agent — Python CDK Deployment (Part 3)
-
-## *From AgentCore CLI to Python CDK: Full Control Over Your Agent Infrastructure*
+# Productionizing AI Agents with AWS CDK, Bedrock AgentCore & CI/CD (Part 3)  
+## *End-to-end IaC, Docker, and GitHub Actions CI/CD for production-ready Bedrock agents*
 
 Deploy the [Network Agent](../02-network-agent/) to Amazon Bedrock AgentCore using **Python CDK**
 instead of the AgentCore CLI. This gives you full control over the infrastructure, split stacks
@@ -32,35 +31,7 @@ Python CDK gives you:
 
 ## Architecture
 
-```
-┌─ Stack 1: NetworkAgent-BaseInfra (deploy once) ────────────────┐
-│                                                                  │
-│  ECR Repository: network-agent                                   │
-│  IAM Role: AgentCore execution role                              │
-│    ├── Bedrock model invocation                                  │
-│    ├── ECR image pull                                            │
-│    ├── CloudWatch Logs + X-Ray                                   │
-│    └── EC2 Describe* (for network tools)                         │
-│                                                                  │
-└──────────────────────────────────────────────────────────────────┘
-                         │
-                         │ ECR URI + Role ARN
-                         ▼
-┌─ GitHub Actions Pipeline ────────────────────────────────────────┐
-│                                                                   │
-│  docker build agent-code/ → docker push ECR (tag: git SHA)       │
-│                                                                   │
-└──────────────────────────────────────────────────────────────────┘
-                         │
-                         │ image tag
-                         ▼
-┌─ Stack 2: NetworkAgent-AgentCore (updates per deploy) ──────────┐
-│                                                                  │
-│  AgentCore CfnRuntime: NetworkAgent                              │
-│    container_uri: {ECR_URI}:{image_tag}                          │
-│                                                                  │
-└──────────────────────────────────────────────────────────────────┘
-```
+![Architecture](./../../assets/03-agentcore-networkingagent-iac.png)
 
 ---
 
