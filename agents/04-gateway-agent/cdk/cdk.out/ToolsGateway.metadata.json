@@ -1,0 +1,110 @@
+{
+  "/ToolsGateway/ToolsGateway": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ToolsGateway"
+    }
+  ],
+  "/ToolsGateway/WeatherTarget": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "WeatherTarget"
+    }
+  ],
+  "/ToolsGateway/NetworkTarget": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "NetworkTarget"
+    }
+  ],
+  "/ToolsGateway/IAMTarget": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "IAMTarget"
+    }
+  ],
+  "/ToolsGateway/GatewayId": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "GatewayId"
+    }
+  ],
+  "/ToolsGateway/GatewayArn": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "GatewayArn"
+    }
+  ],
+  "/ToolsGateway/WeatherLambdaArn": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "WeatherLambdaArn"
+    }
+  ],
+  "/ToolsGateway/NetworkLambdaArn": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "NetworkLambdaArn"
+    }
+  ],
+  "/ToolsGateway/IAMLambdaArn": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "IAMLambdaArn"
+    }
+  ],
+  "/ToolsGateway/BootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "BootstrapVersion"
+    }
+  ],
+  "/ToolsGateway/CheckBootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CheckBootstrapVersion"
+    }
+  ],
+  "/ToolsGateway/LambdaRole/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "LambdaRole3A44B857"
+    }
+  ],
+  "/ToolsGateway/WeatherToolsLambda/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "WeatherToolsLambda453EA78B"
+    }
+  ],
+  "/ToolsGateway/NetworkToolsLambda/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "NetworkToolsLambda84C1D915"
+    }
+  ],
+  "/ToolsGateway/IAMToolsLambda/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "IAMToolsLambdaDBA29B32"
+    }
+  ],
+  "/ToolsGateway/GatewayRole/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "GatewayRole0A0569CA"
+    }
+  ],
+  "/ToolsGateway/CDKMetadata/Default": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CDKMetadata"
+    }
+  ],
+  "/ToolsGateway/CDKMetadata/Condition": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CDKMetadataAvailable"
+    }
+  ]
+}
