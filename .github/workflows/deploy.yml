@@ -62,6 +62,7 @@ jobs:
             --stack-name NetworkAgent-BaseInfra \
             --query 'Stacks[0].Outputs[?OutputKey==`ECRRepositoryUri`].OutputValue' \
             --output text)
+          echo "ecr_uri=$ECR_URI"
           echo "ecr_uri=$ECR_URI" >> "$GITHUB_OUTPUT"
 
   # ──────────────────────────────────────────────
@@ -98,7 +99,7 @@ jobs:
       - name: Build and push Docker image
         working-directory: ${{ env.CDK_DIR }}/agent-code
         env:
-          ECR_URI: ${{ needs.deploy-infra.outputs.ecr_uri }}
+          ECR_URI: "463470985368.dkr.ecr.us-east-1.amazonaws.com/network-agent"
           IMAGE_TAG: ${{ steps.meta.outputs.image_tag }}
         run: |
           docker build -t $ECR_URI:$IMAGE_TAG .
