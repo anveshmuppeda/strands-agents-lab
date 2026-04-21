@@ -13,7 +13,7 @@ from strands.models.bedrock import BedrockModel
 app = BedrockAgentCoreApp()
 log = app.logger
 
-model = BedrockModel(model_id="anthropic.claude-3-sonnet-20240229-v1:0")
+model = BedrockModel(model_id="us.amazon.nova-pro-v1:0")
 
 @tool
 def check_subnet_details(subnet_id: str) -> str:
