@@ -31,35 +31,7 @@ Python CDK gives you:
 
 ## Architecture
 
-```
-┌─ Stack 1: NetworkAgent-BaseInfra (deploy once) ────────────────┐
-│                                                                  │
-│  ECR Repository: network-agent                                   │
-│  IAM Role: AgentCore execution role                              │
-│    ├── Bedrock model invocation                                  │
-│    ├── ECR image pull                                            │
-│    ├── CloudWatch Logs + X-Ray                                   │
-│    └── EC2 Describe* (for network tools)                         │
-│                                                                  │
-└──────────────────────────────────────────────────────────────────┘
-                         │
-                         │ ECR URI + Role ARN
-                         ▼
-┌─ GitHub Actions Pipeline ────────────────────────────────────────┐
-│                                                                   │
-│  docker build agent-code/ → docker push ECR (tag: git SHA)       │
-│                                                                   │
-└──────────────────────────────────────────────────────────────────┘
-                         │
-                         │ image tag
-                         ▼
-┌─ Stack 2: NetworkAgent-AgentCore (updates per deploy) ──────────┐
-│                                                                  │
-│  AgentCore CfnRuntime: NetworkAgent                              │
-│    container_uri: {ECR_URI}:{image_tag}                          │
-│                                                                  │
-└──────────────────────────────────────────────────────────────────┘
-```
+![Architecture](./../../assets/03-agentcore-networkingagent-iac.png)
 
 ---
 
