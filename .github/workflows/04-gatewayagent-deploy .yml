@@ -21,7 +21,7 @@ jobs:
   # Job 1: Deploy base infrastructure (ECR + IAM)
   # ──────────────────────────────────────────────
   deploy-infra:
-    name: Deploy Base Infra
+    name: Deploy Base Infra (Tools & Gateway)
     runs-on: ubuntu-latest
 
     steps:
