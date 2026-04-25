@@ -38,42 +38,30 @@ that need independent scaling, you need to separate tools from agents.
 ## Architecture
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
+┌─ Stack 1: ToolsGateway (base infra — deploy once) ──────────────┐
+│                                                                   │
+│  ECR Repository (gateway-agent)                                   │
+│  3 Lambda Functions (weather, network, IAM tools)                 │
+│  Gateway IAM Role                                                 │
+│  AgentCore Gateway (MCP endpoint, IAM auth)                       │
+│  3 Gateway Targets (one per Lambda, with tool schemas)            │
+│                                                                   │
+└───────────────────────────────────────────────────────────────────┘
+          │                    │
+          │ ECR URI            │ Gateway ID → GATEWAY_URL
+          ▼                    ▼
+┌─ Stack 2: GatewayAgent-Runtime (updates per deploy) ─────────────┐
+│                                                                   │
+│  AgentCore IAM Role (Bedrock + ECR + Gateway invoke)              │
 │  AgentCore Runtime                                                │
+│    ├── container_uri: {ECR_URI}:{image_tag}                       │
+│    └── env: GATEWAY_URL=https://{gateway_id}.gateway...           │
 │                                                                   │
-│  ┌─────────────────────────────────────────────────────────────┐  │
-│  │  Gateway Agent (agent-code/main.py)                         │  │
-│  │                                                              │  │
-│  │  This agent has ZERO tool code.                              │  │
-│  │  It connects to Gateway via MCP and discovers 9 tools.      │  │
-│  │                                                              │  │
-│  │  tools = [mcp_client]  ← single MCP connection              │  │
-│  └──────────────┬──────────────────────────────────────────────┘  │
-└─────────────────┼─────────────────────────────────────────────────┘
-                  │ MCP protocol (SigV4 authenticated)
-                  ▼
-┌──────────────────────────────────────────────────────────────────┐
-│  AgentCore Gateway (tools-gateway)                                │
-│  A managed MCP server — created by CDK                            │
-│                                                                   │
-│  Receives MCP tool calls from the agent,                          │
-│  routes them to the correct Lambda, returns results.              │
-│                                                                   │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐           │
-│  │ Weather      │  │ Network      │  │ IAM          │           │
-│  │ Target       │  │ Target       │  │ Target       │           │
-│  │ (1 tool)     │  │ (5 tools)    │  │ (3 tools)    │           │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘           │
-└─────────┼─────────────────┼─────────────────┼────────────────────┘
-          │                 │                 │
-          ▼                 ▼                 ▼
-  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
-  │ weather-tools│  │ network-tools│  │ iam-tools    │
-  │ Lambda       │  │ Lambda       │  │ Lambda       │
-  │              │  │              │  │              │
-  │ NWS API      │  │ EC2 APIs     │  │ IAM APIs     │
-  └──────────────┘  └──────────────┘  └──────────────┘
+└───────────────────────────────────────────────────────────────────┘
 ```
+
+The `GATEWAY_URL` is automatically constructed from the Gateway ID and passed to the
+Runtime as an environment variable — no hardcoding needed.
 
 ---
 
@@ -82,17 +70,17 @@ that need independent scaling, you need to separate tools from agents.
 ```
 User: "Does subnet-abc have internet access?"
 
-1. Agent receives the question
-2. Agent's MCP client calls Gateway's listTools → gets 9 tool schemas
-3. LLM reads all 9 schemas, decides: "I need check_subnet_details and check_vpc_routes"
-4. Agent sends MCP tool call to Gateway: check_subnet_details(subnet_id="subnet-abc")
-5. Gateway looks up which target owns "check_subnet_details" → network-tools
-6. Gateway invokes network-tools Lambda with:
-   - event = {"subnet_id": "subnet-abc"}
-   - context.client_context.custom = {"bedrockAgentCoreToolName": "network-tools___check_subnet_details"}
-7. Lambda strips the prefix, calls check_subnet_details("subnet-abc")
-8. Lambda returns: {"statusCode": 200, "body": "Subnet: subnet-abc\n  Type: PRIVATE\n  ..."}
-9. Gateway passes result back to agent via MCP
+ 1. Agent receives the question
+ 2. Agent's MCP client calls Gateway's listTools → gets 9 tool schemas
+ 3. LLM reads all 9 schemas, decides: "I need check_subnet_details and check_vpc_routes"
+ 4. Agent sends MCP tool call to Gateway: check_subnet_details(subnet_id="subnet-abc")
+ 5. Gateway looks up which target owns "check_subnet_details" → network-tools
+ 6. Gateway invokes network-tools Lambda with:
+    - event = {"subnet_id": "subnet-abc"}
+    - context.client_context.custom = {"bedrockAgentCoreToolName": "network-tools___check_subnet_details"}
+ 7. Lambda strips the prefix, calls check_subnet_details("subnet-abc")
+ 8. Lambda returns: {"statusCode": 200, "body": "Subnet: subnet-abc\n  Type: PRIVATE\n  ..."}
+ 9. Gateway passes result back to agent via MCP
 10. LLM reads result, calls check_vpc_routes next, then responds to user
 ```
 
@@ -103,12 +91,13 @@ User: "Does subnet-abc have internet access?"
 ```
 04-gateway-agent/
 │
-├── cdk/                                    # Infrastructure (one `cdk deploy`)
-│   ├── app.py                              # CDK app entry point
-│   ├── cdk.json                            # CDK config
+├── cdk/                                    # Infrastructure (two stacks)
+│   ├── app.py                              # CDK app — wires both stacks
+│   ├── cdk.json
 │   ├── requirements.txt                    # aws-cdk-lib >= 2.238.0
 │   └── stacks/
-│       └── gateway_stack.py                # Lambdas + Gateway + Targets
+│       ├── gateway_stack.py                # Stack 1: ECR + Lambdas + Gateway + Targets
+│       └── runtime_stack.py                # Stack 2: AgentCore Runtime (with GATEWAY_URL)
 │
 ├── lambdas/                                # Tool implementations (Lambda functions)
 │   ├── weather-tools/
@@ -118,46 +107,55 @@ User: "Does subnet-abc have internet access?"
 │   └── iam-tools/
 │       └── lambda_function.py              # 3 IAM access tools
 │
-├── agent-code/                             # Agent for AgentCore Runtime
-│   ├── main.py                             # Connects to Gateway via MCP
-│   ├── requirements.txt                    # Agent dependencies
-│   └── Dockerfile                          # Container definition
+├── agent-code/                             # Agent for AgentCore Runtime (CDK deploy)
+│   ├── main.py                             # Connects to Gateway via MCP (zero tool code)
+│   ├── requirements.txt
+│   └── Dockerfile
 │
-├── gatewayagent/                           # AgentCore CLI project (alternative deploy)
+├── gatewayagent/                           # Agent for AgentCore Runtime (CLI deploy)
+│   ├── agentcore/agentcore.json            # GATEWAY_URL set here for CLI deploy
+│   └── app/gatewayagent/main.py            # Same agent code
 │
-├── setup_gateway.py                        # Alternative: manual setup via boto3
-└── README.md                               # This file
+└── README.md
 ```
 
 ---
 
-## What CDK Deploys
+## What CDK Deploys (Two Stacks)
 
-One `cdk deploy` creates everything:
+### Stack 1: `ToolsGateway` (base infra — deploy once)
 
-### IAM Roles
-
-| Role | Trusted By | Permissions | Why |
-| ---- | ---------- | ----------- | --- |
-| Lambda Execution Role | `lambda.amazonaws.com` | CloudWatch Logs, EC2 Describe*, IAM Simulate/List/Get | Lambdas need these to run the tools |
-| Gateway Role | `bedrock-agentcore.amazonaws.com` | `lambda:InvokeFunction` on the 3 Lambdas | Gateway invokes Lambdas on tool calls |
-
-### Lambda Functions
-
-| Lambda | Tools | What It Calls |
-| ------ | ----- | ------------- |
-| `weather-tools` | `get_weather_forecast` | NWS Weather API |
-| `network-tools` | `check_subnet_details`, `check_vpc_routes`, `check_nacl_rules`, `check_security_group`, `check_vpc_endpoints` | EC2 APIs via boto3 |
-| `iam-tools` | `verify_iam_access`, `list_principal_policies`, `get_policy_document` | IAM APIs via boto3 |
-
-### AgentCore Gateway + Targets
-
-| Resource | Details |
+| Resource | Purpose |
 | -------- | ------- |
-| Gateway | `tools-gateway`, MCP protocol, AWS IAM auth |
-| Weather Target | Attaches weather-tools Lambda with 1 tool schema |
-| Network Target | Attaches network-tools Lambda with 5 tool schemas |
-| IAM Target | Attaches iam-tools Lambda with 3 tool schemas |
+| ECR Repository (`gateway-agent`) | Stores the agent container image |
+| Lambda: `weather-tools` | `get_weather_forecast` → NWS API |
+| Lambda: `network-tools` | 5 network tools → EC2 APIs |
+| Lambda: `iam-tools` | 3 IAM tools → IAM APIs |
+| Lambda Execution Role | CloudWatch Logs + EC2 Describe + IAM Simulate/List/Get |
+| Gateway IAM Role | `lambda:InvokeFunction` on the 3 Lambdas |
+| AgentCore Gateway | MCP endpoint with IAM auth |
+| 3 Gateway Targets | Attach each Lambda with tool schemas |
+
+### Stack 2: `GatewayAgent-Runtime` (updates per deploy)
+
+| Resource | Purpose |
+| -------- | ------- |
+| AgentCore IAM Role | Bedrock + ECR + CloudWatch + X-Ray + **Gateway invoke** |
+| AgentCore Runtime | Runs the agent container with `GATEWAY_URL` env var |
+
+The runtime stack receives `gateway_id` and `ecr_repository` from Stack 1:
+
+```python
+# app.py
+gateway = GatewayStack(app, "ToolsGateway")
+
+runtime = RuntimeStack(
+    app, "GatewayAgent-Runtime",
+    gateway_id=gateway.gateway_id,        # → constructs GATEWAY_URL
+    ecr_repository=gateway.ecr_repository, # → container_uri
+)
+runtime.add_dependency(gateway)
+```
 
 ---
 
@@ -170,21 +168,17 @@ Each Lambda strips the prefix and routes to the right function:
 
 ```python
 def handler(event, context):
-    # Gateway sends: "network-tools___check_subnet_details"
     tool_name = context.client_context.custom.get("bedrockAgentCoreToolName", "")
-
-    # Strip prefix → "check_subnet_details"
     if "___" in tool_name:
         tool_name = tool_name.split("___", 1)[1]
 
-    # Tool parameters come directly in event (not event["body"])
     if tool_name == "check_subnet_details":
         result = check_subnet_details(event["subnet_id"])
-        return {"statusCode": 200, "body": result}  # body is a plain string
+        return {"statusCode": 200, "body": result}
 ```
 
 Key details:
-- Context key is **camelCase**: `bedrockAgentCoreToolName` (not `bedrockagentcoreToolName`)
+- Context key is **camelCase**: `bedrockAgentCoreToolName`
 - Tool name has **target prefix**: `weather-tools___get_weather_forecast`
 - Parameters are in **`event` directly** (not `event["body"]`)
 - Response body is a **plain string** (not JSON-wrapped)
@@ -199,38 +193,160 @@ The agent (`agent-code/main.py`) uses `MCPClient` with SigV4 authentication:
 from strands.tools.mcp import MCPClient
 from mcp.client.streamable_http import streamablehttp_client
 
-auth = get_sigv4_auth()  # Signs requests with AWS credentials
+auth = _make_sigv4_auth()
 
 mcp_client = MCPClient(
     lambda: streamablehttp_client(GATEWAY_URL, auth=auth)
 )
 
 agent = Agent(
+    model=load_model(),
     system_prompt=SYSTEM_PROMPT,
     tools=[mcp_client],  # All 9 tools via one MCP connection
 )
 ```
 
-The `GATEWAY_URL` is the Gateway's MCP endpoint:
+`GATEWAY_URL` is set as an environment variable by the CDK runtime stack — no hardcoding.
+
+---
+
+## Code Deep Dive: Agent ↔ Gateway Connection
+
+This section explains the key code patterns in `agent-code/main.py` line by line.
+
+### Why SigV4 Auth?
+
+The Gateway uses AWS IAM authentication (`authorizer_type="AWS_IAM"` in CDK). Every HTTP
+request to the Gateway must be signed with AWS credentials — otherwise Gateway returns 403.
 
 ```
-https://<GATEWAY_ID>.gateway.bedrock-agentcore.<REGION>.amazonaws.com/mcp
+WITHOUT signing:  Agent → plain HTTP → Gateway → "who are you?" → 403 Forbidden
+WITH signing:     Agent → signed HTTP → Gateway → verifies signature → 200 OK
+```
+
+This is the same concept as `aws s3 ls` — the AWS CLI signs every request with SigV4
+behind the scenes. The difference is that the MCP client uses `httpx` (not boto3), so
+we add the signing manually.
+
+### `_make_sigv4_auth()` — Line by Line
+
+```python
+def _make_sigv4_auth() -> httpx.Auth:
+```
+Returns an `httpx.Auth` object. `httpx` is the HTTP library that the MCP client uses.
+`httpx.Auth` is a hook that modifies every outgoing request before it's sent — we use
+it to add AWS signature headers.
+
+```python
+    session = boto3.Session()
+```
+Creates a boto3 session. This finds your AWS credentials from wherever they're available:
+- Locally: from `aws configure` (~/.aws/credentials)
+- On AgentCore Runtime: from the IAM role attached to the runtime
+
+```python
+    creds = session.get_credentials().get_frozen_credentials()
+```
+Extracts the actual credentials (access key ID, secret key, session token).
+`get_frozen_credentials()` takes a snapshot so they don't change mid-request if they
+rotate (temporary credentials from IAM roles refresh periodically).
+
+```python
+    class _GatewayAuth(httpx.Auth):
+```
+Defines a custom auth class. `httpx` calls this on every HTTP request the MCP client
+makes to the Gateway (listTools, callTool, etc.).
+
+```python
+        def auth_flow(self, request):
+```
+Called by `httpx` before sending each request. Receives the raw HTTP request and must
+yield it back with auth headers added.
+
+```python
+            headers = dict(request.headers)
+```
+Copies request headers into a plain dict. `AWSRequest` (botocore's request object)
+expects a regular dict, not httpx's header type.
+
+```python
+            headers.pop("connection", None)
+```
+Removes the `connection: keep-alive` header. AWS SigV4 signing on the server side
+doesn't include this header in its signature calculation. If we include it, the
+signatures won't match and Gateway returns 403.
+
+```python
+            aws_req = AWSRequest(
+                method=request.method,
+                url=str(request.url),
+                data=request.content,
+                headers=headers,
+            )
+```
+Creates a botocore `AWSRequest` — a representation of the HTTP request that botocore's
+signing code understands. We pass the method (POST), URL (Gateway endpoint), body
+(MCP JSON-RPC payload), and headers.
+
+```python
+            BotoSigV4Auth(creds, "bedrock-agentcore", AWS_REGION).add_auth(aws_req)
+```
+**This is the actual signing.** `BotoSigV4Auth` takes the credentials, the AWS service
+name (`bedrock-agentcore`), and the region. `.add_auth()` calculates the signature and
+adds these headers to `aws_req`:
+- `Authorization: AWS4-HMAC-SHA256 Credential=AKIA.../bedrock-agentcore/aws4_request, Signature=abc123...`
+- `X-Amz-Date: 20260421T195808Z`
+- `X-Amz-Security-Token: ...` (if using temporary credentials from an IAM role)
+
+```python
+            request.headers.update(dict(aws_req.headers))
+```
+Copies the signature headers from the botocore request back into the actual httpx
+request that will be sent to Gateway.
+
+```python
+            yield request
+```
+Returns the modified request to httpx. `yield` (not `return`) is required by httpx's
+auth flow protocol — it allows for request/response cycles (like retries on 401).
+
+### Why `lambda:` in `MCPClient(...)`?
+
+```python
+mcp_client = MCPClient(
+    lambda: streamablehttp_client(GATEWAY_URL, auth=_make_sigv4_auth())
+)
+```
+
+`MCPClient` expects a **factory function** — a function it can call later to create the
+connection, not the connection itself.
+
+```python
+# ❌ Without lambda — connects RIGHT NOW (too early, may fail)
+mcp_client = MCPClient(streamablehttp_client(GATEWAY_URL, auth=auth))
+
+# ✅ With lambda — creates a "connect later" function
+mcp_client = MCPClient(lambda: streamablehttp_client(GATEWAY_URL, auth=auth))
+```
+
+`MCPClient` needs this because:
+1. **Lazy connection** — it connects only when the agent first calls a tool, not at import time
+2. **Reconnection** — if the connection drops, it calls the factory function again to reconnect
+3. **Async lifecycle** — `streamablehttp_client` is an async context manager that needs to be
+   entered at the right time
+
+Think of `lambda:` as wrapping the call in a "do this later" package:
+
+```python
+recipe = lambda: make_coffee()   # doesn't make coffee yet
+recipe()                          # NOW it makes coffee
 ```
 
 ---
 
 ## Deploy
 
-### Prerequisites
-
-- Python 3.10+
-- AWS CDK CLI >= 2.1118.2 (`npm install -g aws-cdk@latest`)
-- AWS CLI configured (`aws configure`)
-- Claude/Nova model access in Bedrock console
-- `aws-cdk-lib >= 2.238.0` (for `CfnGateway` support)
-- If your account is in an AWS Organization: SCP must allow `bedrock-agentcore:*`
-
-### Step 1: Deploy Gateway + Lambdas
+### Option A: CDK (both stacks)
 
 ```bash
 cd agents/04-gateway-agent/cdk
@@ -240,43 +356,28 @@ source .venv/bin/activate
 pip install -r requirements.txt
 
 cdk bootstrap aws://YOUR_ACCOUNT_ID/us-east-1
-cdk deploy
+
+# Deploy both stacks (Gateway first, then Runtime)
+cdk deploy --all
+
+# Or deploy individually:
+cdk deploy ToolsGateway                              # Stack 1: Lambdas + Gateway
+# Build and push agent image to ECR...
+cdk deploy GatewayAgent-Runtime -c image_tag=latest   # Stack 2: Agent Runtime
 ```
 
-Takes ~3-5 minutes. Save the `GatewayId` from the output.
-
-### Step 2: Get the Gateway URL
+### Option B: AgentCore CLI (agent only, Gateway already deployed)
 
 ```bash
-GATEWAY_ID=$(aws cloudformation describe-stacks \
-  --stack-name ToolsGateway \
-  --query 'Stacks[0].Outputs[?OutputKey==`GatewayId`].OutputValue' \
-  --output text)
+cd agents/04-gateway-agent/gatewayagent
 
-echo "GATEWAY_URL=https://${GATEWAY_ID}.gateway.bedrock-agentcore.us-east-1.amazonaws.com/mcp"
+# Set GATEWAY_URL in agentcore/agentcore.json
+# Then:
+agentcore dev     # test locally
+agentcore deploy  # deploy to AWS
 ```
 
-### Step 3: Deploy the Agent
-
-Create an AgentCore project and set the `GATEWAY_URL` environment variable:
-
-```bash
-agentcore create --name GatewayAgent --framework Strands --model-provider Bedrock --defaults
-cd GatewayAgent
-
-# Copy the agent code
-cp /path/to/agents/04-gateway-agent/agent-code/main.py app/GatewayAgent/main.py
-```
-
-Add `GATEWAY_URL` to `agentcore/agentcore.json` under the runtime's environment variables,
-then deploy:
-
-```bash
-agentcore dev    # test locally first
-agentcore deploy # deploy to AWS
-```
-
-### Step 4: Test
+### Test
 
 ```bash
 agentcore invoke "What's the weather in Chicago?" --stream
@@ -287,14 +388,9 @@ agentcore invoke "Can arn:aws:iam::123456789012:role/MyRole do s3:PutObject on a
 ### Clean Up
 
 ```bash
-# Destroy the Gateway + Lambdas
 cd agents/04-gateway-agent/cdk
-cdk destroy
-
-# Destroy the agent runtime
-cd GatewayAgent
-agentcore remove all
-agentcore deploy
+cdk destroy GatewayAgent-Runtime
+cdk destroy ToolsGateway
 ```
 
 ---

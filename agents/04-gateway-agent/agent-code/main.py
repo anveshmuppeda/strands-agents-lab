@@ -2,6 +2,7 @@
 Gateway Agent — Connects to AgentCore Gateway to access all tools via MCP.
 
 This agent has NO tool code. It discovers tools from the Gateway at runtime.
+All tools (weather, network, IAM) are Lambda functions behind the Gateway.
 
 Environment variables:
   GATEWAY_URL — AgentCore Gateway MCP endpoint URL
@@ -10,10 +11,14 @@ Environment variables:
 
 import os
 import boto3
+import httpx
+from botocore.auth import SigV4Auth as BotoSigV4Auth
+from botocore.awsrequest import AWSRequest
 from strands import Agent
 from strands.tools.mcp import MCPClient
 from mcp.client.streamable_http import streamablehttp_client
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
+from model.load import load_model
 
 app = BedrockAgentCoreApp()
 log = app.logger
@@ -37,52 +42,48 @@ Guidelines:
 - Explain results clearly and suggest fixes for any issues found
 """
 
-_agent = None
 
-
-def get_sigv4_auth():
-    """Create SigV4 auth for Gateway requests."""
-    import httpx
-    from botocore.auth import SigV4Auth
-    from botocore.awsrequest import AWSRequest
-
+def _make_sigv4_auth() -> httpx.Auth:
+    """SigV4 auth for Gateway requests using current boto3 credentials."""
     session = boto3.Session()
-    credentials = session.get_credentials().get_frozen_credentials()
+    creds = session.get_credentials().get_frozen_credentials()
 
-    class SigV4HTTPXAuth(httpx.Auth):
+    class _GatewayAuth(httpx.Auth):
         def auth_flow(self, request):
             headers = dict(request.headers)
             headers.pop("connection", None)
-            aws_request = AWSRequest(
+            aws_req = AWSRequest(
                 method=request.method,
                 url=str(request.url),
                 data=request.content,
                 headers=headers,
             )
-            signer = SigV4Auth(credentials, "bedrock-agentcore", AWS_REGION)
-            signer.add_auth(aws_request)
-            request.headers.update(dict(aws_request.headers))
+            BotoSigV4Auth(creds, "bedrock-agentcore", AWS_REGION).add_auth(aws_req)
+            request.headers.update(dict(aws_req.headers))
             yield request
 
-    return SigV4HTTPXAuth()
+    return _GatewayAuth()
 
 
-def get_or_create_agent():
+_agent = None
+
+
+def get_or_create_agent() -> Agent:
     global _agent
     if _agent is None:
         if not GATEWAY_URL:
             raise ValueError("GATEWAY_URL environment variable is not set")
 
-        auth = get_sigv4_auth()
         mcp_client = MCPClient(
-            lambda: streamablehttp_client(GATEWAY_URL, auth=auth)
+            lambda: streamablehttp_client(GATEWAY_URL, auth=_make_sigv4_auth())
         )
 
         _agent = Agent(
+            model=load_model(),
             system_prompt=SYSTEM_PROMPT,
             tools=[mcp_client],
         )
-        log.info(f"Agent created with Gateway tools from {GATEWAY_URL}")
+        log.info("Agent created with Gateway tools from %s", GATEWAY_URL)
     return _agent
 
 
