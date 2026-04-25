@@ -1,0 +1,54 @@
+name: Deploy Runtime Invoker Lambda
+
+on:
+  workflow_dispatch:
+    inputs:
+      run:
+        description: 'Run workflow manually'
+        required: false
+
+env:
+  AWS_REGION: us-east-1
+  CDK_DIR: agents/05-runtime-invoker/cdk
+
+permissions:
+  id-token: write   # For OIDC auth with AWS
+  contents: read
+
+jobs:
+
+  # ──────────────────────────────────────────────
+  # Job 1: Deploy Runtime Invoker infrastructure (CDK)
+  # ──────────────────────────────────────────────
+  deploy-infra:
+    name: Deploy  Runtime Invoker Infra
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install CDK
+        run: npm install -g aws-cdk
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Install CDK dependencies
+        working-directory: ${{ env.CDK_DIR }}
+        run: pip install -r requirements.txt
+
+      - name: CDK Deploy — RuntimeInvoker Infra
+        working-directory: ${{ env.CDK_DIR }}
+        run: cdk deploy RuntimeInvoker --require-approval never
