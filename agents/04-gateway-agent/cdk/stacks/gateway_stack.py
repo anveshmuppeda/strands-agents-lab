@@ -14,6 +14,8 @@ from aws_cdk import (
     Stack,
     Duration,
     CfnOutput,
+    RemovalPolicy,
+    aws_ecr as ecr,
     aws_iam as iam,
     aws_lambda as lambda_,
     aws_bedrockagentcore as bedrockagentcore,
@@ -24,6 +26,27 @@ from constructs import Construct
 class GatewayStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
+
+        # ─── Lambda Execution Role ───────────────────────────────────
+
+        # ─── ECR Repository (for agent container image) ──────────────
+
+        self.ecr_repository = ecr.Repository(
+            self,
+            "ECRRepository",
+            repository_name="gateway-agent",
+            image_tag_mutability=ecr.TagMutability.MUTABLE,
+            removal_policy=RemovalPolicy.DESTROY,
+            empty_on_delete=True,
+            image_scan_on_push=True,
+            lifecycle_rules=[
+                ecr.LifecycleRule(
+                    description="Keep last 10 images",
+                    max_image_count=10,
+                    rule_priority=1,
+                )
+            ],
+        )
 
         # ─── Lambda Execution Role ───────────────────────────────────
 
@@ -143,6 +166,9 @@ class GatewayStack(Stack):
             role_arn=gateway_role.role_arn,
             description="Centralized MCP gateway for weather, network, and IAM tools",
         )
+
+        # Expose for cross-stack reference
+        self.gateway_id = gateway.ref
 
         # ─── Helper: Create a tool definition for CDK ────────────────
 
@@ -323,3 +349,7 @@ class GatewayStack(Stack):
         CfnOutput(self, "IAMLambdaArn",
                    description="IAM tools Lambda ARN",
                    value=iam_lambda.function_arn)
+
+        CfnOutput(self, "ECRRepositoryUri",
+                   description="ECR Repository URI (push agent image here)",
+                   value=self.ecr_repository.repository_uri)
