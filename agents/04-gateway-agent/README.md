@@ -1,4 +1,4 @@
-# AgentCore Gateway Agent (Part 4)
+# Strands Agents & Amazon Bedrock AgentCore (Part 4): Gateway Architecture
 
 ## *From Tools-in-Code to Tools-as-a-Service: Centralizing Agent Tools with MCP*
 
@@ -11,6 +11,9 @@ it discovers all 9 tools at runtime via MCP.
 > Strands agents, `@tool`, AgentCore Runtime, and Python CDK.
 
 ---
+
+## Architecture  
+![Gateway Architecture](./../../assets/04-agentcore-gatewayagent-iac.png)
 
 ## Why Gateway?
 
