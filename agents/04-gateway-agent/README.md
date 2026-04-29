@@ -15,6 +15,9 @@ it discovers all 9 tools at runtime via MCP.
 ## Architecture  
 ![Gateway Architecture](./../../assets/04-agentcore-gatewayagent-iac.png)
 
+## Request Flow — Step by Step
+![Full Journey of a Single Question](./../../assets/04-agentcore-gatewayagent-iac-02.png)
+
 ## Why Gateway?
 
 In the previous agents, tools lived inside the agent code:
