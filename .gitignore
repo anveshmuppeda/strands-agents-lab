@@ -209,3 +209,7 @@ __marimo__/
 # AgentCore
 */agentcore/.cli/logs/
 */agentcore/.cli/deployed-state.json
+
+# MAC
+.DS_Store
+*/.DS_Store

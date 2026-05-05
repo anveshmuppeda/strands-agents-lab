@@ -1,0 +1,7 @@
+strands-agents
+strands-agents-tools
+boto3
+botocore
+bedrock-agentcore
+mcp>=1.19.0
+httpx

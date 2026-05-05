@@ -1,0 +1,92 @@
+name: Deploy Memory Gateway Agent (CDK)
+
+on:
+  workflow_dispatch: # Manual trigger only
+
+env:
+  AWS_REGION: us-east-1
+  CDK_DIR: agents/05-memory-agent/cdk
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+
+  # ──────────────────────────────────────────────
+  # Job 1: Deploy Gateway + Lambdas + Memory + Runtime
+  # ──────────────────────────────────────────────
+  deploy-infra:
+    name: Deploy All Stacks
+    runs-on: ubuntu-latest
+    outputs:
+      ecr_uri: ${{ steps.get-outputs.outputs.ecr_uri }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install CDK
+        run: npm install -g aws-cdk
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Install CDK dependencies
+        working-directory: ${{ env.CDK_DIR }}
+        run: pip install -r requirements.txt
+
+      - name: CDK Deploy — All Stacks
+        working-directory: ${{ env.CDK_DIR }}
+        run: cdk deploy --all --require-approval never
+
+      - name: Get ECR URI
+        id: get-outputs
+        run: |
+          ECR_URI=$(aws cloudformation describe-stacks \
+            --stack-name MemoryGatewayAgent-Runtime \
+            --query 'Stacks[0].Outputs[?OutputKey==`ECRRepositoryUri`].OutputValue' \
+            --output text)
+          echo "ecr_uri=$ECR_URI" >> "$GITHUB_OUTPUT"
+
+  # ──────────────────────────────────────────────
+  # Job 2: Build and push agent image
+  # ──────────────────────────────────────────────
+  build-and-push:
+    name: Build & Push Agent Image
+    runs-on: ubuntu-latest
+    needs: deploy-infra
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push Docker image
+        working-directory: agents/05-memory-agent/agent-code
+        env:
+          ECR_URI: ${{ needs.deploy-infra.outputs.ecr_uri }}
+        run: |
+          IMAGE_TAG=$(git rev-parse --short HEAD)
+          docker build -t $ECR_URI:$IMAGE_TAG .
+          docker tag $ECR_URI:$IMAGE_TAG $ECR_URI:latest
+          docker push $ECR_URI:$IMAGE_TAG
+          docker push $ECR_URI:latest
+          echo "Pushed: $ECR_URI:$IMAGE_TAG"
