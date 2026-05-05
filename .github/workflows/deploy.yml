@@ -1,166 +1,170 @@
-name: Deploy Network Agent
+name: Network Agent Delivery Pipeline
 
 on:
-  workflow_dispatch:
-    inputs:
-      run:
-        description: 'Run workflow manually'
-        required: false
+workflow_dispatch:
 
 env:
-  AWS_REGION: us-east-1
-  CDK_DIR: agents/03-network-agent-cdk
+AWS_REGION: us-east-1
+CDK_PATH: agents/03-network-agent-cdk
+STACK_BASE: NetworkAgent-BaseInfra
+STACK_RUNTIME: NetworkAgent-AgentCore
 
 permissions:
-  id-token: write   # For OIDC auth with AWS
-  contents: read
+id-token: write
+contents: read
+
+# ============================================================
+
+# 🔹 JOB 1 — INFRASTRUCTURE PROVISIONING
+
+# ============================================================
 
 jobs:
+infra:
+name: Provision Infrastructure
+runs-on: ubuntu-latest
 
-  # ──────────────────────────────────────────────
-  # Job 1: Deploy base infrastructure (ECR + IAM)
-  # ──────────────────────────────────────────────
-  deploy-infra:
-    name: Deploy Base Infra
-    runs-on: ubuntu-latest
-    outputs:
-      ecr_uri: ${{ steps.get-outputs.outputs.ecr_uri }}
+```
+outputs:
+  ecr_uri: ${{ steps.export.outputs.ecr_uri }}
 
-    steps:
-      - uses: actions/checkout@v4
+steps:
+  - name: Source Checkout
+    uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+  - name: Runtime Setup
+    uses: actions/setup-node@v4
+    with:
+      node-version: 20
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
+  - uses: actions/setup-python@v5
+    with:
+      python-version: 3.11
+      cache: pip
 
-      - name: Install CDK
-        run: npm install -g aws-cdk
+  - name: Install CDK CLI
+    run: npm install -g aws-cdk
 
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+  - name: Authenticate to AWS (OIDC)
+    uses: aws-actions/configure-aws-credentials@v4
+    with:
+      role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+      aws-region: ${{ env.AWS_REGION }}
 
-      - name: Install CDK dependencies
-        working-directory: ${{ env.CDK_DIR }}
-        run: pip install -r requirements.txt
+  - name: Install Dependencies
+    working-directory: ${{ env.CDK_PATH }}
+    run: pip install -r requirements.txt
 
-      - name: CDK Deploy — Base Infra
-        working-directory: ${{ env.CDK_DIR }}
-        run: cdk deploy NetworkAgent-BaseInfra --require-approval never
+  - name: Deploy Base Stack
+    working-directory: ${{ env.CDK_PATH }}
+    run: |
+      cdk deploy $STACK_BASE \
+        --require-approval never
 
-      - name: Get stack outputs
-        id: get-outputs
-        run: |
-          ECR_URI=$(aws cloudformation describe-stacks \
-            --stack-name NetworkAgent-BaseInfra \
-            --query 'Stacks[0].Outputs[?OutputKey==`ECRRepositoryUri`].OutputValue' \
-            --output text)
-          echo "ecr_uri=$ECR_URI"
-          echo "ecr_uri=$ECR_URI" >> "$GITHUB_OUTPUT"
+  - name: Extract Stack Outputs
+    id: export
+    run: |
+      ECR_URI=$(aws cloudformation describe-stacks \
+        --stack-name $STACK_BASE \
+        --query 'Stacks[0].Outputs[?OutputKey==`ECRRepositoryUri`].OutputValue' \
+        --output text)
 
-  # ──────────────────────────────────────────────
-  # Job 2: Build Docker image and push to ECR
-  # ──────────────────────────────────────────────
-  build-and-push:
-    name: Build & Push Image
-    runs-on: ubuntu-latest
-    needs: deploy-infra
-    outputs:
-      image_tag: ${{ steps.meta.outputs.image_tag }}
+      echo "ecr_uri=$ECR_URI" >> $GITHUB_OUTPUT
+```
 
-    steps:
-      - uses: actions/checkout@v4
+# ============================================================
 
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+# 🔹 JOB 2 — IMAGE BUILD & REGISTRY PUSH
 
-      - name: Login to Amazon ECR
-        id: ecr-login
-        uses: aws-actions/amazon-ecr-login@v2
+# ============================================================
 
-      - name: Set image tag
-        id: meta
-        run: |
-          # Use short git SHA as image tag
-          IMAGE_TAG=$(git rev-parse --short HEAD)
-          echo "image_tag=$IMAGE_TAG" >> "$GITHUB_OUTPUT"
-      
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+build:
+name: Build & Publish Image
+runs-on: ubuntu-latest
+needs: infra
 
-      - name: Build and push ARM64 image
-        working-directory: ${{ env.CDK_DIR }}/agent-code
-        env:
-            ECR_URI: "463470985368.dkr.ecr.us-east-1.amazonaws.com/network-agent"
-            IMAGE_TAG: ${{ steps.meta.outputs.image_tag }}
-        run: |
-            docker buildx build \
-            --platform linux/arm64 \
-            -t $ECR_URI:$IMAGE_TAG \
-            -t $ECR_URI:latest \
-            --push .
+```
+outputs:
+  image_tag: ${{ steps.meta.outputs.tag }}
 
-    #   - name: Build and push Docker image
-    #     working-directory: ${{ env.CDK_DIR }}/agent-code
-    #     env:
-    #       ECR_URI: "463470985368.dkr.ecr.us-east-1.amazonaws.com/network-agent"
-    #       IMAGE_TAG: ${{ steps.meta.outputs.image_tag }}
-    #     run: |
-    #       docker build -t $ECR_URI:$IMAGE_TAG .
-    #       docker tag $ECR_URI:$IMAGE_TAG $ECR_URI:latest
-    #       docker push $ECR_URI:$IMAGE_TAG
-    #       docker push $ECR_URI:latest
-    #       echo "Pushed: $ECR_URI:$IMAGE_TAG"
+steps:
+  - uses: actions/checkout@v4
 
-  # ──────────────────────────────────────────────
-  # Job 3: Deploy AgentCore Runtime with new image
-  # ──────────────────────────────────────────────
-  deploy-agentcore:
-    name: Deploy AgentCore
-    runs-on: ubuntu-latest
-    needs: [deploy-infra, build-and-push]
+  - name: AWS Authentication
+    uses: aws-actions/configure-aws-credentials@v4
+    with:
+      role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+      aws-region: ${{ env.AWS_REGION }}
 
-    steps:
-      - uses: actions/checkout@v4
+  - name: ECR Login
+    uses: aws-actions/amazon-ecr-login@v2
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+  - name: Generate Image Metadata
+    id: meta
+    run: |
+      TAG=$(git rev-parse --short HEAD)
+      echo "tag=$TAG" >> $GITHUB_OUTPUT
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
+  - name: Setup Buildx
+    uses: docker/setup-buildx-action@v3
 
-      - name: Install CDK
-        run: npm install -g aws-cdk
+  - name: Build & Push (Multi-Arch)
+    working-directory: ${{ env.CDK_PATH }}/agent-code
+    env:
+      ECR_URI: ${{ needs.infra.outputs.ecr_uri }}
+      IMAGE_TAG: ${{ steps.meta.outputs.tag }}
+    run: |
+      docker buildx build \
+        --platform linux/amd64,linux/arm64 \
+        --tag $ECR_URI:$IMAGE_TAG \
+        --tag $ECR_URI:latest \
+        --push .
+```
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+# ============================================================
 
-      - name: Install CDK dependencies
-        working-directory: ${{ env.CDK_DIR }}
-        run: pip install -r requirements.txt
+# 🔹 JOB 3 — APPLICATION DEPLOYMENT
 
-      - name: CDK Deploy — AgentCore Runtime
-        working-directory: ${{ env.CDK_DIR }}
-        env:
-          IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
-        run: |
-          cdk deploy NetworkAgent-AgentCore \
-            --require-approval never \
-            -c image_tag=$IMAGE_TAG
+# ============================================================
+
+deploy:
+name: Deploy Runtime
+runs-on: ubuntu-latest
+needs: [infra, build]
+
+```
+steps:
+  - uses: actions/checkout@v4
+
+  - name: Runtime Setup
+    uses: actions/setup-node@v4
+    with:
+      node-version: 20
+
+  - uses: actions/setup-python@v5
+    with:
+      python-version: 3.11
+      cache: pip
+
+  - name: Install CDK CLI
+    run: npm install -g aws-cdk
+
+  - name: AWS Authentication
+    uses: aws-actions/configure-aws-credentials@v4
+    with:
+      role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+      aws-region: ${{ env.AWS_REGION }}
+
+  - name: Install Dependencies
+    working-directory: ${{ env.CDK_PATH }}
+    run: pip install -r requirements.txt
+
+  - name: Deploy Runtime Stack
+    working-directory: ${{ env.CDK_PATH }}
+    env:
+      IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
+    run: |
+      cdk deploy $STACK_RUNTIME \
+        --require-approval never \
+        -c image_tag=$IMAGE_TAG
+```
