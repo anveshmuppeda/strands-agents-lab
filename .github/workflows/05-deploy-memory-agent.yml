@@ -48,7 +48,7 @@ jobs:
 
       - name: CDK Deploy — Base Infra
         working-directory: ${{ env.CDK_DIR }}
-        run: cdk deploy ToolsGateway --require-approval never
+        run: cdk deploy MemoryToolsGateway --require-approval never
 
   # ──────────────────────────────────────────────
   # Job 2: Build Docker image and push to ECR
