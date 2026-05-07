@@ -1,5 +1,4 @@
-# AgentCore Memory Agent (Part 5)
-
+# Strands Agents & Amazon Bedrock AgentCore (Part 5): Memory Architecture
 ## *Making Agents Remember: Conversations That Persist Across Sessions*
 
 Add **AgentCore Memory** to the Gateway Agent from Guide 04 so it remembers conversations.
@@ -10,6 +9,9 @@ where it left off.
 > [04-gateway-agent](../04-gateway-agent/) first.
 
 ---
+
+## Architecture  
+![Architecture](./../../assets/05-agentcore-memagent.png)
 
 ## The Problem
 
